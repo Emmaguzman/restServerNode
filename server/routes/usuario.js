@@ -1,36 +1,48 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const _ = require("underscore");
+
 const Usuario = require("../models/usuario");
+const { verificaToken, verificaAdmin } = require('../middlewares/autenticacion');
 
 const app = express();
 
-app.get("/cliente", (req, res) => {
-    let limite = req.query.limite || 5;
-    limite = Number(limite);
+app.get("/cliente", verificaToken, (req, res) => {
     let desde = req.query.desde || 0;
     desde = Number(desde);
 
-    Usuario.find({}, "role nombre email estado google img")
+    let limite = req.query.limite || 5;
+    limite = Number(limite);
+
+    Usuario.find({ estado: true }, 'nombre email role estado google img')
         .skip(desde)
         .limit(limite)
         .exec((err, usuarios) => {
-            if (err)
-                res.status(400).json({
+
+            if (err) {
+                return res.status(400).json({
                     ok: false,
-                    err,
+                    err
                 });
-            Usuario.count({}, (err, conteo) => {
+            }
+
+            Usuario.count({ estado: true }, (err, conteo) => {
+
                 res.json({
                     ok: true,
                     usuarios,
-                    cuantos: conteo,
+                    cuantos: conteo
                 });
+
             });
+
+
         });
+
+
 });
 
-app.post("/cliente", function(req, res) {
+app.post("/cliente", [verificaToken, verificaAdmin], (req, res) => {
     let body = req.body;
 
     let usuario = new Usuario({
@@ -55,7 +67,7 @@ app.post("/cliente", function(req, res) {
     });
 });
 
-app.put("/cliente/:id", function(req, res) {
+app.put("/cliente/:id", verificaToken, (req, res) => {
     let id = req.params.id;
 
     let body = _.pick(req.body, ["nombre", "email", "img", "role", "estado"]);
@@ -84,7 +96,7 @@ app.put("/cliente/:id", function(req, res) {
 let cambiaEstado = {
     estado: false
 }
-app.delete("/cliente/:id", function(req, res) {
+app.delete("/cliente/:id", verificaToken, (req, res) => {
     let id = req.params.id;
 
     Usuario.findByIdAndUpdate(
